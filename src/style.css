@@ -18,6 +18,47 @@
   font: inherit;
   font-size: 16px;
 }
+.invite-panel {
+  text-align: center;
+}
+.invite-panel input {
+  width: 100%;
+}
+.invite-qr {
+  display: block;
+  width: min(100%, 280px);
+  height: auto;
+  margin: 20px auto;
+  border-radius: 12px;
+}
+.invitation-code {
+  display: block;
+  font-family: monospace;
+  font-size: 30px;
+  letter-spacing: 5px;
+  margin: 10px 0 22px;
+}
+.join-panel {
+  text-align: center;
+  padding: 26px;
+}
+.join-panel > svg {
+  color: #34d399;
+}
+.join-panel h2 {
+  margin: 16px 0 8px;
+}
+.join-panel .player-name-field {
+  text-align: left;
+}
+.join-panel .button {
+  margin-top: 14px;
+}
+.qr-camera {
+  width: 100%;
+  border-radius: 12px;
+  margin-top: 16px;
+}
 :root {
   font-family: "DM Sans", Arial, sans-serif;
   color: #eff3fa;

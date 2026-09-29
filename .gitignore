@@ -6,3 +6,8 @@ dist/
 *.log
 *.pem
 test-results/
+.signal-data/
+.env
+.env.local
+deploy/signaling/tunnel.yml
+*.tar.gz

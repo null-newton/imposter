@@ -1,28 +1,67 @@
-# imp.zacsvae.com deployment
+# Deployment and operations
 
-Prepared configuration; not yet deployed. The destination server and DNS access still need to be supplied.
+## Installed on the CachyOS laptop
 
-This package runs one Node server and one shared lobby. It needs a host that supports long-running Node processes, WebSockets, and persistent storage. Static-only hosting cannot run the multiplayer server. Use exactly one app replica with the current file-backed state model.
+SSH: isaac@cachyos-x8664
 
-## Docker server option
+Service files: /home/isaac/REPOS/imposter-signaling
 
-For a Linux server with Docker Compose and ports 80/443 available:
+- Docker Compose project: imp-signaling
+- Container: imp-signaling-signaling-1
+- Host listener: 127.0.0.1:8788
+- Persistent metadata: Docker volume imp-signaling_imp-signal-data
+- Tunnel: imp-signaling (f5c2b04d-1c68-499e-a5e9-c29c3d23469f)
+- Tunnel container: imp-signaling-tunnel
+- Public hostname: imp-signal.zacsvae.com
+- Connection endpoint: wss://imp-signal.zacsvae.com/signal
+- Health endpoint: https://imp-signal.zacsvae.com/healthz
 
-1. Copy this project to the server, excluding `node_modules`, `dist`, `.data*`, test results, and private credentials. The Docker build creates its own fresh production assets. Existing local games and device tokens are not uploaded.
-2. In Cloudflare DNS, create an `A` record named `imp` pointing to that server's public IPv4 address. Start with DNS-only mode while verifying the origin certificate. Only add an `AAAA` record if the server has working public IPv6.
-3. From the project folder, run `docker compose up -d --build`.
-4. Inspect `docker compose ps` and `docker compose logs --tail=100 app caddy`. Open `https://imp.zacsvae.com` and verify four devices can join, reserve colors, start a game, and vote.
+Both containers use restart: unless-stopped. This does not depend on user login/linger. Docker must start at boot and the laptop must remain powered on. Existing toolbox-backend.service, cloudflared-filesrv.service and the api/cine/files hostnames were not modified.
 
-The Caddy configuration handles HTTPS and proxies `/room` WebSocket connections to the app. Named volumes preserve lobby state and TLS certificate data. Do not remove those volumes when updating. Deploy an update with `docker compose up -d --build`; the server restarts, and clients reconnect to its persisted session. Schedule updates between games when possible.
+The tunnel credentials stay in /home/isaac/.cloudflared on the laptop and are mounted read-only. They are not copied into this repository. The generated tunnel configuration is also excluded from Git.
 
-If the server already has a reverse proxy on ports 80/443, integrate the app into that proxy instead of starting the included Caddy service. The app listens on port 5173 internally, and its persistent directory is `/app/data`.
+## Inspect and update
 
-## Hosting-provider option
+```sh
+cd /home/isaac/REPOS/imposter-signaling
+docker compose -f deploy/signaling/compose.yaml ps
+docker compose -f deploy/signaling/compose.yaml logs --tail=100
+docker logs --tail=100 imp-signaling-tunnel
+curl --fail https://imp-signal.zacsvae.com/healthz
+```
 
-The `Dockerfile` can also be used by a container hosting provider. Set its listening port to 5173, attach a persistent disk at `/app/data` writable by UID 1000, run one replica, and disable idle suspension for uninterrupted sessions. Add `imp.zacsvae.com` as a custom domain and use the DNS records provided by that host. The provider can terminate HTTPS instead of Caddy.
+Copy updated server/signaling.mjs and deploy/signaling files into that folder, then run:
 
-The site currently uses one shared lobby across every visitor to its public address. Public hosting does not restrict discovery to a Wi-Fi network. This remains a casual crew companion, without accounts or room access codes.
+```sh
+docker compose -f deploy/signaling/compose.yaml up -d --build
+```
 
-The Docker configuration has not been executed locally because Docker is not installed in the development environment. The existing TypeScript production build and browser multiplayer tests are separate from deployment validation.
+Keep the metadata volume. Clients reconnect after a service restart. Schedule updates between games. The service has an origin allowlist for https://imp.zacsvae.com and https://null-newton.github.io. Development origins are allowed only by the local service defaults. Game state never lives in this Docker volume.
 
-References: [Caddy automatic HTTPS](https://caddyserver.com/docs/automatic-https), [WebSocket reverse proxy support](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy), [persistent Compose volumes](https://docs.docker.com/reference/compose-file/volumes/).
+The install-user.sh script documents initial installation using the existing user's Cloudflare account certificate. It creates a dedicated tunnel and DNS record only for imp-signal.zacsvae.com. It does not edit the root-owned filesrv tunnel. Do not start another connector for filesrv with this app's ingress rules.
+
+## Frontend publication
+
+Push this project to null-newton/imposter. In Settings → Pages, select GitHub Actions. The included workflow builds and uploads dist, not the source folder. Keep imp.zacsvae.com as the custom domain and enable HTTPS. The imp CNAME already points to null-newton.github.io.
+
+Optional Actions variable:
+
+```text
+VITE_SIGNAL_URL=wss://imp-signal.zacsvae.com/signal
+```
+
+The same value is the build fallback; it is independent of the toolbox repository's VITE_FUNCTIONS_URL setting.
+
+## Browser verification
+
+In one terminal run npm run signal. In another, build a local-endpoint preview:
+
+```powershell
+$env:VITE_SIGNAL_URL = 'ws://localhost:8788/signal'
+npm run build
+npx vite preview --port 5175
+```
+
+Then npm run test:browser and npm run test:offline. These tests use installed Microsoft Edge. Screenshots are saved under test-results. node tests/live-signal.mjs checks public HTTPS/WSS with a temporary room and removes that room afterward.
+
+Physical phones should scan the host invitation from https://imp.zacsvae.com, on the same Wi-Fi. Test host suspension/reconnection and a complete vote on target iOS/Android versions before relying on a particular router/browser combination.

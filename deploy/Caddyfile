@@ -1,4 +1,0 @@
-imp.zacsvae.com {
-    encode zstd gzip
-    reverse_proxy app:5173
-}

@@ -6,9 +6,18 @@ try {
     viewport: { width: 390, height: 844 },
   });
   const page = await context.newPage();
+  page.setDefaultTimeout(15000);
   await page.goto("http://localhost:5175");
   await page.evaluate(async () => {
-    await navigator.serviceWorker.ready;
+    await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Service worker did not activate")),
+          15000,
+        ),
+      ),
+    ]);
   });
   await page.reload();
   await page.waitForFunction(() => !!navigator.serviceWorker.controller);
@@ -23,7 +32,7 @@ try {
   await page.reload();
   await page.getByRole("heading", { name: /Trust your crew/ }).waitFor();
   await page
-    .getByText("Connection lost — trying to reconnect…", { exact: false })
+    .getByText("Connecting to the room service…", { exact: false })
     .waitFor();
   assert.ok(await page.locator("style,link[rel=stylesheet]").count());
   console.log(

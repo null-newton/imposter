@@ -5,7 +5,7 @@ import {
   type Player,
   type Command,
   type Settings,
-} from "../shared.js";
+} from "../shared.ts";
 const defaults: Settings = {
   discussion: 90,
   voting: 45,
@@ -344,6 +344,7 @@ export class Game {
     l.result = {
       counts,
       ejected,
+      abstained: l.eligible.length - Object.keys(l.votes).length,
       reason: tied
         ? "The vote was tied."
         : ejected

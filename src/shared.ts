@@ -75,6 +75,7 @@ export type Lobby = {
     counts: Record<string, number>;
     ejected: string | null;
     reason: string;
+    abstained?: number;
   };
   events: string[];
 };

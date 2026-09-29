@@ -1,0 +1,23 @@
+name: imp-signaling
+services:
+  signaling:
+    build:
+      context: ../..
+      dockerfile: deploy/signaling/Dockerfile
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:8788:8788"
+    environment:
+      ALLOWED_ORIGINS: "https://imp.zacsvae.com,https://null-newton.github.io"
+    volumes:
+      - imp-signal-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  imp-signal-data:

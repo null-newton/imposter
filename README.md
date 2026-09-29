@@ -1,15 +1,29 @@
-# Among Us · Meeting Room
+# Meeting Room
 
-A mobile-first, local multiplayer companion for in-person games. React + TypeScript + Vite, with an Express/WebSocket room server. No accounts or external multiplayer service.
+A mobile PWA for in-person games. The host creates a room and chooses their own name and color; guests scan one invitation QR or enter the room code, then choose theirs. Colors reserve live. Four connected players unlock Start Game.
 
-## Run
+## Production
+
+- Frontend: https://imp.zacsvae.com — GitHub Pages, repository null-newton/imposter.
+- Connection service: wss://imp-signal.zacsvae.com/signal — Node on the CachyOS laptop through a dedicated Cloudflare Tunnel.
+- Health: https://imp-signal.zacsvae.com/healthz.
+
+The signaling service is deployed separately from toolbox-backend and the existing filesrv tunnel. The service stores only room membership, hashed reconnect credentials and host epochs. Names, color selections, game events and votes travel directly over WebRTC data channels. The website needs its GitHub Pages workflow deployed to serve the new client.
+
+## Local development
+
+Use Node 24 or newer. In two terminals:
 
 ```sh
-npm install
+npm ci
+npm run signal
+```
+
+```sh
 npm run dev
 ```
 
-Open `http://localhost:5173`. The terminal also prints the computer’s Wi-Fi address. **Every phone must open that same address**, on the same network. Permit inbound port 5173 in the computer’s firewall if needed. Keep this computer awake while playing. Guest Wi-Fi client isolation may prevent connection.
+Open http://localhost:5173. The local signal service listens on 127.0.0.1:8788. A production build uses wss://imp-signal.zacsvae.com/signal unless VITE_SIGNAL_URL is set at build time. Do not put credentials in VITE_ variables: they are public frontend configuration.
 
 ```sh
 npm test
@@ -17,58 +31,32 @@ npm run build
 npm start
 ```
 
-`npm start` serves the production build. `PORT` overrides 5173. Do not expose the server to the public internet; this is a trusted LAN party tool, not a hardened public service.
+Use separate browser profiles or ?device=red, ?device=blue, etc. to simulate distinct persistent devices. Ordinary duplicate tabs are detected and the second tab is asked to use the original one. A normal refresh restores the device identity and reconnects automatically.
 
-## Install on phones / offline shell
+## GitHub Pages
 
-Service workers and installation require HTTPS (localhost is an exception only on the computer itself). Plain HTTP LAN addresses support live play but cannot provide a full installable/offline PWA. To install on real phones, use a certificate trusted by every participating device, then set `TLS_KEY` and `TLS_CERT` to the PEM file paths before starting the server. The server serves HTTPS and secure WebSockets on the same port. On iOS use Share → Add to Home Screen. Android uses the browser install action. Icons, manifest and the built JS/CSS shell are cached after the first secure production visit. An offline launch shows a reconnection banner; multiplayer requires reaching the room server.
+The workflow at .github/workflows/deploy.yml runs unit/integration tests, builds Vite, and deploys dist on pushes to main/master. In repository Settings → Pages, choose GitHub Actions as the source, set the custom domain to imp.zacsvae.com, and enable HTTPS. The imp DNS CNAME must point to null-newton.github.io. The repository variable VITE_SIGNAL_URL is optional; its fallback is the deployed signaling URL above. This build targets the custom domain root, not a /imposter subdirectory.
 
-## Try four devices on one computer
+## Multiplayer behavior
 
-Open four browser tabs:
+- A room code identifies one crew. There is no automatic Wi-Fi scanning and no global lobby visible to every visitor. QR links contain the room code, never a reconnect token.
+- The connection service authenticates persistent devices, relays WebRTC connection descriptions, and chooses a single host with an increasing epoch. It keeps that role stable when an original host returns.
+- Every device connects directly to its peers. The host runs the game state machine and distributes snapshots. Other devices cache those snapshots so the next host can restore the latest available state.
+- A disconnected host is replaced after a grace period. Heartbeat detection can take around 10–25 seconds, followed by a short state-recovery pause. The signaling service must be reachable for host changes and new connections.
+- During voting, devices send salted SHA-256 commitments instead of readable choices. Once voting closes, devices reveal their saved ballots to the host. Results appear after all committed votes are received or a five-second reveal grace period ends. A device that stays offline through that deadline abstains, even if it previously committed a vote. Returning before the deadline restores its saved ballot.
+- State-changing requests are checked against the lobby, authority epoch, phase and player ownership. Color claims are serialized by the host, preventing simultaneous overlap. This is a trusted party-game companion, not a cheat-proof competitive protocol; a modified host client can falsify state.
+- Explicitly leaving releases the player in the waiting room. Temporarily disconnecting reserves the existing character for reconnection.
 
-- `http://localhost:5173/?device=red`
-- `http://localhost:5173/?device=blue`
-- `http://localhost:5173/?device=green`
-- `http://localhost:5173/?device=yellow`
+## Network limits
 
-Each query value gets its own persistent device identity. Create a lobby in one tab, enter your name, and select a color. Other tabs join with their own names and colors. The normal URL uses one persistent device identity; duplicate normal tabs share a character, and closing one does not disconnect the others. There are no simulated players in the normal app.
+WebRTC uses local ICE candidates only; there is no STUN or TURN service and no gameplay relay. Use the same Wi-Fi, with client isolation disabled. This avoids depending on an additional relay but cannot guarantee connectivity on every router or browser. A room code does not cryptographically prove that users share a Wi-Fi network. Physical iOS/Android testing remains necessary.
 
-Start requires four connected players. Set discussion to immediate voting in host settings for quick testing. Close the host tab, wait roughly 8 seconds, and observe the next connected character become host. A silently lost connection can take up to 23 seconds (heartbeat expiry plus grace). Reopen the exact device URL: its character and vote return, but host authority stays with the replacement. Refreshing within the grace period preserves authority.
+Keep participating apps in the foreground when possible. Mobile operating systems may suspend background tabs. Existing direct connections can continue through a short signaling outage, but new joins, host election and rebuilding connections require the laptop/tunnel. Game snapshots are saved on players’ devices, not on the laptop; clearing every device’s storage loses the game.
 
-The host creates an empty lobby and then chooses only their own name and color. Every guest does the same. Selecting a color reserves it immediately across all devices, before joining; other pickers see “Being chosen.” Switching colors, backing out, or disconnecting beyond the grace period releases an unfinished reservation. Confirmed players keep their colors through temporary disconnects. Only confirmed, connected players count toward the four-player minimum. The roster supports up to 15 players and has no host-managed placeholders.
+## PWA and tests
 
-## Architecture and rules
+HTTPS allows home-screen installation, camera scanning and offline shell loading. The production service worker caches the shell and built assets. Offline loading does not create a new room without the connection service.
 
-- `server/game.ts`: explicit authoritative state machine, claim validation, host election, settings, meeting deadlines and vote calculation.
-- `server/index.ts`: same-origin discovery and WebSocket transport, token authentication, heartbeats, duplicate-tab handling and atomic session persistence in `.data/session.json`.
-- `src/transport.ts`: replaceable transport interface; persistent random identity and server-issued reconnect token; reconnection, authoritative snapshots and server clock offset.
-- `src/shared.ts`: shared domain types.
-- `src/components.tsx`: reusable visual components and accessible dialog.
-- `src/App.tsx`: UI flows and device preferences.
-- `public/sw.js`: production offline app shell.
+npm test covers game transitions, reservations, duplicate claims, reconnects, host migration, voting, privacy commitments and signaling room isolation. npm run test:browser exercises four actual browser/WebRTC clients against a local static preview and signal service; it tests a decoded invitation QR, room codes, voting, host loss during voting, ballot recovery and manual transfer. It asserts that gameplay messages never use the signaling WebSocket. npm run test:offline checks cached shell loading. See deploy/README.md for setup and operations.
 
-Browsers cannot scan arbitrary LAN devices. Discovery here means finding the one active lobby at the app’s shared origin. The server stays independent of the player host and is the single authority, preventing split-brain host elections. The host is a transferable game-control role. Election orders connected players by join order, then device ID. Disconnected players retain character ownership until they explicitly leave. Returning original hosts never displace a current connected host. Host epochs and state versions increase monotonically. Stale game-control actions are rejected and refreshed. Color reservations and joins are checked atomically against current availability, so independent simultaneous selections do not invalidate each other; lobby IDs and host epochs are still checked. Clients do not upload state snapshots. Session state and opaque bearer tokens are stored locally by the server; keep `.data` private.
-
-Votes are omitted from all clients’ snapshots until results (and remain omitted when anonymous results are enabled). Only submitted status and a device’s own vote are exposed during voting. Eligibility is frozen at meeting start, including claimed disconnected players, so they have until the authoritative deadline to return. Missing votes abstain; a tie for first or a winning skip ejects nobody. Ejected players remain connected and can watch but cannot vote. Voting can end early when all eligible votes arrive. Only players who actually joined are included in the roster.
-
-The server persists meetings, identities and deadlines across restarts. Players are marked disconnected on restart and restored by reconnecting sockets. Deadlines continue in wall-clock time; an elapsed meeting catches up after restart. If the server computer goes down, clients retain the visible session and reconnect when it returns; another phone cannot replace the infrastructure server.
-
-## Validation
-
-`npm test` covers empty-lobby creation, personal names, concurrent color reservations, reservation release, duplicate joins, stale versions/epochs, permissions, minimum crew, reconnects, host migration/return, manual transfer, meeting deadlines, private votes, duplicate vote protection, host loss mid-meeting, vote timeout, ties, ejection and reset.
-
-The browser checks use installed Microsoft Edge. Start an isolated production server in a separate PowerShell terminal:
-
-```powershell
-npm run build
-$env:PORT = '5175'
-$env:DATA_DIR = '.data-test-pwa'
-npm start
-```
-
-Then run `node tests/browser.mjs` and `node tests/offline.mjs`. The first exercises four independent mobile clients, synchronized voting/ejection, host migration and reconnection, and captures screenshots in `test-results`. It resets only the isolated test lobby on port 5175. The second checks manifest icons and reloads the cached production shell without a network. Both checks passed in desktop Edge with mobile viewport emulation; this does not substitute for testing physical phones.
-
-Real phone acceptance: connect four phones, create/join, install using trusted HTTPS, start a meeting, submit votes, lock the host phone, wait for migration, reopen it, and repeat. Mobile browser background suspension and Wi-Fi behavior should be checked on your target iOS/Android devices.
-
-Fan-made companion, not affiliated with Innersloth. Avatars and space artwork are drawn as local SVG/CSS; fonts have system fallbacks when offline.
+Fan-made companion, not affiliated with Innersloth.

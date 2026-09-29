@@ -1,4 +1,4 @@
-const CACHE = "meeting-room-v1";
+const CACHE = "meeting-room-webrtc-v2";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
@@ -34,7 +34,7 @@ self.addEventListener("fetch", (event) => {
   }
   event.respondWith(
     caches
-      .match(event.request)
+      .match(event.request, { ignoreVary: true })
       .then((cached) => cached || fetch(event.request)),
   );
 });

@@ -1,3 +1,4 @@
+import { Invite, JoinPanel } from "./Invite";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { room, identity } from "./transport";
 import { colors, type Player, type Settings } from "./shared";
@@ -38,6 +39,16 @@ export default function App() {
     early: true,
   });
   const [install, setInstall] = useState<any>(null);
+  useEffect(() => {
+    const code = new URLSearchParams(location.search).get("room");
+    if (code && net.signaling && !net.code && !net.joining) {
+      const url = new URL(location.href);
+      url.searchParams.delete("room");
+      history.replaceState(null, "", url);
+      setPage("search");
+      room.join(code);
+    }
+  }, [net.signaling]);
   const send = (type: string, extra: Record<string, unknown> = {}) =>
     room.send({ type, ...extra });
   useEffect(() => {
@@ -59,7 +70,7 @@ export default function App() {
   useEffect(() => {
     if (me) setPage("room");
     else if (host) setPage("host-character");
-    else if (selected) setPage("join-character");
+    else if (l) setPage("join-character");
     else if (!l && ["room", "host-character", "join-character"].includes(page))
       setPage("home");
   }, [me?.id, l?.id]);
@@ -92,7 +103,7 @@ export default function App() {
     }
   }, [l?.phase]);
   const back = () => {
-    if (!me && l && (selected || host)) send("CANCEL_SELECTION");
+    if (!me && net.code) room.leave();
     setPage("home");
   };
   const screen = me ? "room" : page;
@@ -116,7 +127,11 @@ export default function App() {
       <div className="header-right">
         <span className="network-pill">
           <span className={`live-dot ${!net.connected ? "amber" : ""}`} />
-          {net.connected ? "LOCAL CONNECTION" : "CONNECTING"}
+          {net.connected
+            ? l
+              ? "CREW CONNECTED"
+              : "READY TO JOIN"
+            : "CONNECTING"}
         </span>
         <button
           className="icon-button"
@@ -182,8 +197,13 @@ export default function App() {
       {top}
       {!net.connected && (
         <div className="offline-banner" role="status">
-          Connection lost — trying to reconnect…{" "}
-          <small>Keep this screen open. Your character is reserved.</small>
+          {net.code
+            ? "Reconnecting to your crew…"
+            : "Connecting to the room service…"}{" "}
+          <small>
+            Keep this screen open. If this continues, check your Wi-Fi or ask
+            your host to reopen the app.
+          </small>
         </div>
       )}
       <main className={screen === "home" ? "home-main" : "flow-main"}>
@@ -224,8 +244,8 @@ export default function App() {
                 </div>
                 {l ? (
                   <p className="hint existing">
-                    <span className="live-dot" /> A lobby already exists on this
-                    network.
+                    <span className="live-dot" /> You already have an active
+                    room.
                   </p>
                 ) : (
                   <p className="home-note">
@@ -358,77 +378,31 @@ export default function App() {
               <>
                 {title(
                   "FIND YOUR PEOPLE",
-                  l ? "Lobby found" : "Join a lobby",
-                  l
-                    ? "Your crew is waiting. Let’s get you aboard."
-                    : "Searching for a lobby on your network…",
+                  "Join a lobby",
+                  "One invitation. Your whole crew.",
                 )}
-                {l ? (
-                  <section className="panel found-card">
-                    <Avatar
-                      color={
-                        l.players.find((p) => p.deviceId === l.hostDeviceId)
-                          ?.color
-                      }
-                      size={95}
-                    />
-                    <h2>{l.name}</h2>
-                    <p>
-                      {connected} connected · {l.players.length} players
+                <JoinPanel
+                  onJoin={(code) => room.join(code)}
+                  disabled={!net.signaling}
+                  joining={net.joining}
+                />
+                {net.code && !l && (
+                  <>
+                    <p className="hint">
+                      Connecting directly to the host. Keep both screens open on
+                      the same Wi-Fi.
                     </p>
-                    <div className="mini-crew">
-                      {l.players.map((p) => (
-                        <Avatar key={p.id} color={p.color} size={34} />
-                      ))}
-                    </div>
-                    <Button
-                      tone="blue"
-                      disabled={l.phase !== "LOBBY_WAITING" || !net.connected}
+                    <button
+                      className="text-button"
                       onClick={() => {
-                        setPage("join-character");
+                        room.leave();
+                        setPage("home");
                       }}
                     >
-                      Join Lobby <span>→</span>
-                    </Button>
-                    {l.phase !== "LOBBY_WAITING" && (
-                      <p>The game is underway. Wait for the next round.</p>
-                    )}
-                  </section>
-                ) : (
-                  <>
-                    <div className="radar">
-                      <div />
-                      <div />
-                      <div />
-                      <i />
-                      <Avatar color="White" size={62} />
-                    </div>
-                    <section className="panel scan-card">
-                      <Icon name="wifi" size={32} />
-                      <h3>Looking for an active lobby…</h3>
-                      <p>
-                        Ask your host to create a lobby and share this app’s
-                        address.
-                      </p>
-                      <span className="loading-dots">•••</span>
-                    </section>
-                    <Button
-                      tone="subtle"
-                      disabled={!net.connected}
-                      onClick={() => send("CREATE")}
-                    >
-                      Create a lobby instead
-                    </Button>
+                      Cancel joining
+                    </button>
                   </>
                 )}
-                <div className="check-note">
-                  <Icon name="check" size={17} /> Connect to the same Wi-Fi as
-                  your host.
-                </div>
-                <div className="check-note">
-                  <Icon name="check" size={17} /> Open the same app address on
-                  every phone.
-                </div>
               </>
             )}
             {screen === "room" && l && me && (
@@ -445,7 +419,7 @@ export default function App() {
                       <span className="live-dot" /> {connected}/
                       {l.players.length} connected{" "}
                       <span className="room-code">
-                        ROOM {l.id.slice(0, 4).toUpperCase()}
+                        ROOM <span data-testid="room-code">{net.code}</span>
                       </span>
                     </p>
                   </div>
@@ -487,23 +461,9 @@ export default function App() {
                       <Icon name="wifi" />
                       <div>
                         <strong>Bring your crew aboard</strong>
-                        <small>Share this address on the same Wi-Fi.</small>
+                        <small>Share the room code or invitation QR.</small>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (navigator.share)
-                            navigator
-                              .share({
-                                title: "Join my crew",
-                                url: location.origin,
-                              })
-                              .catch(() => {});
-                          else {
-                            setName(location.origin);
-                            setModal("share");
-                          }
-                        }}
-                      >
+                      <button onClick={() => setModal("share")}>
                         Invite ↗
                       </button>
                     </div>
@@ -606,7 +566,11 @@ export default function App() {
                 {l.phase === "MEETING_VOTING" && (
                   <>
                     <div className="vote-heading">
-                      <h2>Who is the Impostor?</h2>
+                      <h2>
+                        {net.revealing
+                          ? "Counting the votes…"
+                          : "Who is the Impostor?"}
+                      </h2>
                       <p>
                         {!me.alive
                           ? "Watch the crew decide."
@@ -624,6 +588,7 @@ export default function App() {
                             p={p}
                             you={p.id === me.id}
                             onClick={
+                              !net.revealing &&
                               me.alive &&
                               l.eligible.includes(me.id) &&
                               (!net.snapshot.myVote || l.settings.changes)
@@ -649,7 +614,7 @@ export default function App() {
                       <Button
                         tone="subtle"
                         disabled={
-                          !me.alive ||
+                          net.revealing || !me.alive ||
                           !l.eligible.includes(me.id) ||
                           (!!net.snapshot.myVote && !l.settings.changes) ||
                           !net.connected
@@ -731,7 +696,7 @@ export default function App() {
                         </div>
                       ))}
                       <p className="hint">
-                        {l.eligible.length - net.snapshot.voted.length}{" "}
+                        {l.result.abstained ?? l.eligible.length - net.snapshot.voted.length}{" "}
                         abstained
                       </p>
                       {!l.settings.anonymous &&
@@ -1077,37 +1042,21 @@ export default function App() {
               <p className="hint">Preferences are saved on this device.</p>
             </>
           )}
-          {modal === "share" && (
-            <>
-              <p>
-                Everyone should open this address while connected to the same
-                Wi-Fi.
-              </p>
-              <input
-                readOnly
-                value={name}
-                onFocus={(e) => e.target.select()}
-                aria-label="App address"
-              />
-              <p className="hint">
-                If this says localhost, use the Wi-Fi address printed by the
-                server instead.
-              </p>
-            </>
-          )}
+          {modal === "share" && <Invite code={net.code} />}
           {modal === "about" && (
             <>
               <p>
-                One person creates a lobby. Everyone else opens the same
-                address, joins, and picks a character.
+                One person creates a lobby. Everyone else scans their invitation
+                QR or enters the room code, then picks a name and color.
               </p>
               <p>
                 Play your real-world game, call a meeting when something looks
                 suspicious, then discuss and vote together.
               </p>
               <p>
-                Keep the computer running this app switched on. The crew can
-                change hosts without losing the game.
+                Keep the host’s app open. Game messages travel directly between
+                your devices. The connection service helps everyone join and
+                reconnect.
               </p>
             </>
           )}

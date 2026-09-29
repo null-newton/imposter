@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Game } from "../server/game.js";
+import { Game } from "../src/game/game.ts";
 import type { Command } from "../src/shared.js";
 function setup() {
   const g = new Game();
