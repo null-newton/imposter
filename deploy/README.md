@@ -30,7 +30,19 @@ docker logs --tail=100 imp-signaling-tunnel
 curl --fail https://imp-signal.zacsvae.com/healthz
 ```
 
-Copy updated server/signaling.mjs and deploy/signaling files into that folder, then run:
+From the project root on Windows, run:
+
+```powershell
+.\deploy\update-backend.ps1
+```
+
+On Linux, run:
+
+```sh
+bash ./deploy/update-backend.sh
+```
+
+Both scripts deploy the backend files from the current local checkout to the CachyOS laptop, rebuild the Docker service, and check its local health endpoint. OpenSSH prompts in the terminal if a password is required; the scripts do not store it. The frontend is published separately through GitHub Pages. To update the backend manually, copy `server/signaling.mjs` and the Docker build files in `deploy/signaling`, then run:
 
 ```sh
 docker compose -f deploy/signaling/compose.yaml up -d --build
