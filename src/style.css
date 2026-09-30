@@ -18,6 +18,65 @@
   font: inherit;
   font-size: 16px;
 }
+.profile-picture-field {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 18px 0 24px;
+}
+.profile-picture-field > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+}
+.photo-upload {
+  display: inline-block;
+  border: 1px solid #4977aa;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #dbeaff;
+  cursor: pointer;
+  font-size: 12px;
+}
+.modal .photo-upload {
+  margin: 0;
+}
+.photo-upload:focus-within {
+  outline: 2px solid #80aeff;
+  outline-offset: 2px;
+}
+.photo-upload input[type="file"],
+.modal .photo-upload input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+}
+.photo-remove {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #9dafc6;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 11px;
+}
+.photo-error {
+  color: #ff9ca5;
+  font-size: 12px;
+  margin: 8px 0;
+}
+.modal h3 {
+  margin: 18px 0 10px;
+  font-size: 15px;
+}
+.modal h3:not(:first-child) {
+  border-top: 1px solid #2b3f55;
+  padding-top: 18px;
+}
 .invite-panel {
   text-align: center;
 }
@@ -734,6 +793,28 @@ p {
   opacity: 0.35;
   filter: grayscale(0.7);
 }
+.player-avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 2px solid #ffffff33;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 3px #000a;
+}
+.player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.player-avatar.ghost {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
 .grow,
 .player-info {
   flex: 1;
@@ -766,53 +847,6 @@ p {
 }
 .flow-main > .button {
   margin-top: 22px;
-}
-.character-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 11px;
-  margin: 24px 0;
-}
-.character-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 1px solid #2c3e54;
-  background: linear-gradient(140deg, #1b2b3d, #101a28);
-  border-radius: 13px;
-  padding: 16px 5px 13px;
-  min-height: 137px;
-}
-.character-card strong {
-  font-size: 12px;
-  margin-top: 9px;
-}
-.character-card small {
-  font-size: 9px;
-  color: #7f95af;
-  margin-top: 5px;
-}
-.character-card.selected {
-  border: 2px solid #498aff;
-  padding: 15px 4px 12px;
-  box-shadow: 0 0 0 3px #3179fa14;
-  background: #193154;
-  transform: translateY(-2px);
-}
-.character-card.selected small {
-  color: #80aeff;
-}
-.selected-check {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: #367df5;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  width: 17px;
-  height: 17px;
 }
 .found-card {
   text-align: center;
@@ -1003,7 +1037,7 @@ p {
   text-align: center;
   padding: 35px 0;
 }
-.active-character .avatar {
+.active-character .player-avatar {
   margin: 28px 0;
   filter: drop-shadow(0 0 50px #34659150);
   animation: float 4s ease-in-out infinite;
@@ -1192,7 +1226,7 @@ p {
   padding: 35px 0;
   animation: float 5s ease-in-out infinite;
 }
-.ejected-avatar svg {
+.ejected-avatar .player-avatar {
   transform: rotate(42deg);
 }
 .no-ejection {
@@ -1664,20 +1698,6 @@ p {
   }
   .panel {
     padding: 12px;
-  }
-  .character-grid {
-    gap: 9px;
-  }
-  .character-card {
-    min-height: 126px;
-    padding: 12px 4px;
-  }
-  .character-card.selected {
-    padding: 11px 3px;
-  }
-  .character-card .avatar {
-    width: 63px;
-    height: 63px;
   }
   .flow-main .screen-title h1 {
     font-size: 34px;

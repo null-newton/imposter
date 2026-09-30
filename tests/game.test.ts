@@ -24,17 +24,16 @@ function setup() {
     );
   for (const color of ["Red", "Blue", "Green", "Yellow"]) {
     const device = "device-" + color.toLowerCase();
-    act(device, "RESERVE_COLOR", { color });
-    act(device, "JOIN", { color, name: color });
+    act(device, "JOIN", { color, name: color, picture: "" });
   }
   return { g, act };
 }
-test("creation and claimed characters are unique", () => {
+test("creation and player identities are unique", () => {
   const { g, act } = setup();
   assert.equal(g.lobby!.players.length, 4);
   assert.throws(
-    () => act("stranger", "RESERVE_COLOR", { color: "Blue" }),
-    /taken/,
+    () => act("device-blue", "JOIN", { color: "Blue", name: "Again", picture: "" }),
+    /already joined/,
   );
   assert.throws(() => g.command("x", { type: "CREATE" }), /already exists/);
 });
@@ -93,7 +92,7 @@ function voting() {
   return out;
 }
 
-test("empty lobby, personal names, and atomic in-progress color reservations", () => {
+test("joining and editing profiles work without color selection", () => {
   const g = new Game();
   g.command("host", { type: "CREATE" });
   assert.deepEqual(g.lobby!.players, []);
@@ -109,45 +108,33 @@ test("empty lobby, personal names, and atomic in-progress color reservations", (
       epoch: g.lobby!.epoch,
       ...extra,
     });
-  command("host", "RESERVE_COLOR", { color: "Red" });
-  const version = g.lobby!.version;
-  command("guest-a", "RESERVE_COLOR", { color: "Blue", version });
   assert.throws(
-    () => command("guest-b", "RESERVE_COLOR", { color: "Blue", version }),
-    /taken/,
-  );
-  command("guest-b", "RESERVE_COLOR", { color: "Green", version });
-  assert.equal(g.snapshot("host").lobby!.reservations["guest-a"], "Blue");
-  command("guest-a", "RESERVE_COLOR", { color: "Cyan" });
-  command("guest-b", "RESERVE_COLOR", { color: "Blue" });
-  assert.throws(
-    () => command("guest-b", "JOIN", { color: "Blue", name: "  " }),
+    () => command("guest-b", "JOIN", { color: "Blue", name: "  ", picture: "" }),
     /Names/,
   );
   assert.throws(
-    () => command("guest-b", "JOIN", { color: "Green", name: "Sam" }),
-    /Select/,
+    () => command("guest-b", "JOIN", { color: "Green", name: "Sam", picture: "data:text/html;base64,AAAA" }),
+    /picture/,
   );
-  command("guest-b", "JOIN", { color: "Blue", name: "  Sam  " });
+  command("guest-b", "JOIN", { color: "Blue", name: "  Sam  ", picture: "" });
   assert.equal(g.player("guest-b")!.name, "Sam");
+  command("guest-b", "PROFILE", { color: "Blue", name: "Sammy", picture: "data:image/jpeg;base64,AAAA" });
+  assert.equal(g.player("guest-b")!.name, "Sammy");
+  assert.equal(g.player("guest-b")!.picture, "data:image/jpeg;base64,AAAA");
   assert.equal(
     g.lobby!.hostDeviceId,
     "host",
-    "Host keeps authority while choosing",
+    "Host keeps authority while another player joins",
   );
-  command("host", "JOIN", { color: "Red", name: "Alex" });
+  command("host", "JOIN", { color: "Red", name: "Alex", picture: "" });
   assert.equal(g.lobby!.players.length, 2);
   assert.throws(() => command("host", "START"), /4 connected/);
   command("guest-a", "CANCEL_SELECTION");
-  assert.equal(g.lobby!.reservations["guest-a"], undefined);
-  command("guest-c", "RESERVE_COLOR", { color: "Cyan" });
-  g.connection("guest-c", false);
-  assert.equal(g.lobby!.reservations["guest-c"], undefined);
   g.connection("host", false);
   assert.equal(
-    g.player("host")!.color,
-    "Red",
-    "Joined colors remain reserved on disconnect",
+    g.player("host")!.name,
+    "Alex",
+    "The profile remains in the lobby on disconnect",
   );
 });
 
@@ -158,8 +145,8 @@ test("unfinished host can cancel or disconnect without leaving an orphan lobby",
   assert.equal(g.lobby, null);
   const { act } = setup();
   assert.throws(
-    () => act("device-yellow", "RESERVE_COLOR", { color: "Cyan" }),
-    /already have/,
+    () => act("device-yellow", "JOIN", { color: "Cyan", name: "Again", picture: "" }),
+    /already joined/,
   );
 });
 test("private choices, duplicate prevention, timeout and ejection", () => {

@@ -1,9 +1,10 @@
 import { Invite, JoinPanel } from "./Invite";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { room, identity } from "./transport";
-import { colors, type Player, type Settings } from "./shared";
+import { type Player, type Settings } from "./shared";
 import {
   Avatar,
+  PlayerAvatar,
   Icon,
   Button,
   PlayerRow,
@@ -11,17 +12,21 @@ import {
   Timer,
   Hero,
 } from "./components";
+import { ProfileFields } from "./ProfileFields";
+import { loadProfile, saveProfile, type Profile } from "./profile";
 export default function App() {
   const net = useSyncExternalStore(room.subscribe, room.getSnapshot);
   const l = net.snapshot.lobby;
   const me = l?.players.find((p) => p.deviceId === identity.id);
+  const ejectedPlayer = l?.players.find((p) => p.id === l.result?.ejected);
   const host = l?.hostDeviceId === identity.id;
   const [page, setPage] = useState("home");
   const [modal, setModal] = useState("");
-  const selected = l?.reservations?.[identity.id] || "";
-  const [playerName, setPlayerName] = useState(
-    () => localStorage.getItem("meeting-player-name") || "",
-  );
+  const [profile, setProfile] = useState<Profile>(loadProfile);
+  const [profileDraft, setProfileDraft] = useState<Profile>(profile);
+  const [profileError, setProfileError] = useState("");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const lastProfileSync = useRef("");
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
   const [now, setNow] = useState(Date.now());
@@ -51,6 +56,35 @@ export default function App() {
   }, [net.signaling]);
   const send = (type: string, extra: Record<string, unknown> = {}) =>
     room.send({ type, ...extra });
+  const updateProfile = (next: Profile) => {
+    try {
+      saveProfile(next);
+      setProfile(next);
+      setProfileError("");
+      return true;
+    } catch {
+      setProfileError("This device could not save your profile.");
+      return false;
+    }
+  };
+  useEffect(() => {
+    if (!me || !l || !net.connected) {
+      lastProfileSync.current = "";
+      return;
+    }
+    if (
+      me.name === profile.name.trim() &&
+      me.picture === profile.picture &&
+      me.color === profile.color
+    ) {
+      lastProfileSync.current = "";
+      return;
+    }
+    const key = `${l.id}:${profile.name}:${profile.picture}:${profile.color}`;
+    if (lastProfileSync.current === key) return;
+    lastProfileSync.current = key;
+    send("PROFILE", profile);
+  }, [me?.name, me?.picture, me?.color, l?.id, net.connected, profile]);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now() + net.offset), 250);
     return () => clearInterval(timer);
@@ -136,7 +170,11 @@ export default function App() {
         <button
           className="icon-button"
           aria-label="Device settings"
-          onClick={() => setModal("device")}
+          onClick={() => {
+            setProfileDraft(profile);
+            setProfileError("");
+            setModal("device");
+          }}
         >
           <Icon name="settings" />
         </button>
@@ -150,48 +188,6 @@ export default function App() {
       {sub && <p>{sub}</p>}
     </div>
   );
-  function characterGrid() {
-    return (
-      <div className="character-grid">
-        {colors.map((color) => {
-          const taken = l?.players.some((p) => p.color === color);
-          const reserved = Object.entries(l?.reservations || {}).some(
-            ([id, c]) => id !== identity.id && c === color,
-          );
-          return (
-            <button
-              key={color}
-              className={`character-card ${selected === color ? "selected" : ""}`}
-              disabled={
-                taken ||
-                reserved ||
-                !net.connected ||
-                l?.phase !== "LOBBY_WAITING"
-              }
-              onClick={() => send("RESERVE_COLOR", { color })}
-            >
-              <Avatar color={color} size={72} />
-              <strong>{color}</strong>
-              <small>
-                {taken
-                  ? "Taken"
-                  : reserved
-                    ? "Being chosen"
-                    : selected === color
-                      ? "Selected"
-                      : "Available"}
-              </small>
-              {selected === color && (
-                <span className="selected-check">
-                  <Icon name="check" size={12} />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    );
-  }
   return (
     <div className="app-shell">
       {top}
@@ -222,7 +218,7 @@ export default function App() {
                 <p className="home-description">
                   Your next emergency meeting starts here.
                   <br />
-                  Gather your friends, pick a character, and let
+                  Gather your friends, set up your profile, and let
                   <br className="desktop-break" /> the accusations begin.
                 </p>
                 <div className="home-actions">
@@ -297,8 +293,8 @@ export default function App() {
                   ],
                   [
                     "02",
-                    "Pick your character",
-                    "Choose your color. Try to look innocent.",
+                    "Set your profile",
+                    "Add your name and a picture if you like.",
                     "users",
                   ],
                   [
@@ -333,28 +329,10 @@ export default function App() {
                   {title(
                     host ? "YOUR LOBBY IS OPEN" : "JOIN THE CREW",
                     "Who are you?",
-                    "Enter your name and choose an available color.",
+                    "Enter your name and add a picture if you like.",
                   )}
-                  <label className="player-name-field">
-                    Your name
-                    <input
-                      value={playerName}
-                      maxLength={24}
-                      placeholder="Enter your name"
-                      autoComplete="nickname"
-                      onChange={(e) => {
-                        setPlayerName(e.target.value);
-                        localStorage.setItem(
-                          "meeting-player-name",
-                          e.target.value,
-                        );
-                      }}
-                    />
-                  </label>
-                  <p className="hint" role="status">
-                    Colors are reserved live while your crew chooses.
-                  </p>
-                  {characterGrid()}
+                  <ProfileFields profile={profile} onChange={updateProfile} onBusyChange={setProfileBusy} />
+                  {profileError && <p className="hint" role="status">{profileError}</p>}
                   {l.phase !== "LOBBY_WAITING" && (
                     <p className="hint">
                       The game has started. Join when the crew returns to the
@@ -364,15 +342,13 @@ export default function App() {
                   <Button
                     disabled={
                       !net.connected ||
-                      !selected ||
-                      !playerName.trim() ||
+                      profileBusy ||
+                      !profile.name.trim() ||
                       l.phase !== "LOBBY_WAITING"
                     }
-                    onClick={() =>
-                      send("JOIN", { color: selected, name: playerName })
-                    }
+                    onClick={() => send("JOIN", profile)}
                   >
-                    Join as {playerName.trim() || "your character"}{" "}
+                    Join as {profile.name.trim() || "yourself"}{" "}
                     <Icon name="check" />
                   </Button>
                 </>
@@ -517,7 +493,7 @@ export default function App() {
                           ? "LOOK ALIVE, CREWMATE"
                           : "YOU’RE STILL PART OF THE CREW"}
                       </span>
-                      <Avatar color={me.color} size={170} dead={!me.alive} />
+                      <PlayerAvatar name={me.name} picture={me.picture} color={me.color} size={170} dead={!me.alive} />
                       <h2>You are {me.name}.</h2>
                       <p>
                         {me.alive
@@ -675,13 +651,7 @@ export default function App() {
                       <span className="eyebrow">THE VERDICT IS IN</span>
                       {l.result.ejected ? (
                         <div className="ejected-avatar">
-                          <Avatar
-                            color={
-                              l.players.find((p) => p.id === l.result!.ejected)
-                                ?.color
-                            }
-                            size={130}
-                          />
+                          {ejectedPlayer && <PlayerAvatar name={ejectedPlayer.name} picture={ejectedPlayer.picture} color={ejectedPlayer.color} size={130} dead />}
                         </div>
                       ) : (
                         <div className="no-ejection">✧</div>
@@ -749,7 +719,7 @@ export default function App() {
                   <div className="ended-screen">
                     <div className="mini-crew">
                       {l.players.slice(0, 5).map((p) => (
-                        <Avatar color={p.color} size={60} key={p.id} />
+                        <PlayerAvatar name={p.name} picture={p.picture} color={p.color} size={60} key={p.id} />
                       ))}
                     </div>
                     {title(
@@ -1029,6 +999,19 @@ export default function App() {
           )}
           {modal === "device" && (
             <>
+              <h3>Your profile</h3>
+              <ProfileFields profile={profileDraft} onChange={setProfileDraft} onBusyChange={setProfileBusy} />
+              {profileError && <p className="photo-error" role="status">{profileError}</p>}
+              <Button
+                disabled={profileBusy || !profileDraft.name.trim()}
+                onClick={() => {
+                  if (!updateProfile(profileDraft)) return;
+                  setModal("");
+                }}
+              >
+                Save profile
+              </Button>
+              <h3>Device preferences</h3>
               {[
                 ["sound", "Sound effects"],
                 ["haptics", "Vibration"],
@@ -1061,7 +1044,7 @@ export default function App() {
                   Installation requires a secure connection.
                 </p>
               )}
-              <p className="hint">Preferences are saved on this device.</p>
+              <p className="hint">Your profile and preferences are saved on this device.</p>
             </>
           )}
           {modal === "share" && <Invite code={net.code} />}
@@ -1070,7 +1053,7 @@ export default function App() {
               <p>
                 One person creates a lobby. Everyone else presses Join Lobby to
                 find it on the same internet connection, then picks a name and
-                color. An invitation QR or code is available if needed.
+                picture. An invitation QR or code is available if needed.
               </p>
               <p>
                 Play your real-world game, call a meeting when something looks

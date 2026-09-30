@@ -49,6 +49,34 @@ export function Avatar({
     </svg>
   );
 }
+export function PlayerAvatar({
+  name,
+  picture,
+  color = "Red",
+  size = 48,
+  dead = false,
+}: {
+  name: string;
+  picture?: string;
+  color?: string;
+  size?: number;
+  dead?: boolean;
+}) {
+  return (
+    <span
+      className={`player-avatar ${dead ? "ghost" : ""}`}
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.45,
+        backgroundColor: hex[colors.indexOf(color)] || hex[0],
+      }}
+      aria-hidden="true"
+    >
+      {picture ? <img src={picture} alt="" /> : name.trim().slice(0, 1).toUpperCase() || "?"}
+    </span>
+  );
+}
 export function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
     wifi: (
@@ -150,7 +178,7 @@ export function PlayerRow({
 }) {
   const content = (
     <>
-      <Avatar color={p.color} size={43} dead={!p.alive} />
+      <PlayerAvatar name={p.name} picture={p.picture} color={p.color} size={43} dead={!p.alive} />
       <div className="player-info">
         <strong>{p.name}</strong>
         <small>

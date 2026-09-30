@@ -43,6 +43,7 @@ export type Phase =
 export type Player = {
   id: string;
   name: string;
+  picture: string;
   color: string;
   deviceId?: string;
   connected: boolean;
@@ -63,7 +64,6 @@ export type Lobby = {
   epoch: number;
   hostDeviceId: string;
   players: Player[];
-  reservations: Record<string, string>;
   phase: Phase;
   settings: Settings;
   deadline: number;

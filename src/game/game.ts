@@ -28,11 +28,26 @@ export class Game {
     return this.lobby?.players.find((p) => p.deviceId === device);
   }
   connectedDevices = new Set<string>();
-  releaseColor(device: string) {
-    if (this.lobby?.reservations[device]) {
-      delete this.lobby.reservations[device];
-      this.touch("Color released");
-    }
+  validProfile(
+    c: Command,
+  ): asserts c is Command & { name: string; picture: string; color: string } {
+    this.require(
+      typeof c.color === "string" && colors.includes(c.color),
+      "Invalid profile color.",
+    );
+    this.require(
+      typeof c.name === "string" &&
+        c.name.trim().length > 0 &&
+        c.name.trim().length <= 24,
+      "Names must be 1–24 characters.",
+    );
+    this.require(
+      typeof c.picture === "string" &&
+        (c.picture === "" ||
+          (c.picture.length <= 3000 &&
+            /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(c.picture))),
+      "Choose a smaller JPG picture.",
+    );
   }
   command(device: string, c: Command, now = Date.now()) {
     if (c.type === "CREATE") {
@@ -45,7 +60,6 @@ export class Game {
         epoch: 1,
         hostDeviceId: device,
         players: [],
-        reservations: {},
         phase: "LOBBY_WAITING",
         settings: { ...defaults },
         deadline: 0,
@@ -60,24 +74,17 @@ export class Game {
     this.require(c.lobbyId === l.id, "This lobby has ended.");
     this.require(
       (c.version === l.version ||
-        ["RESERVE_COLOR", "RELEASE_COLOR", "JOIN", "CANCEL_SELECTION"].includes(
-          c.type,
-        )) &&
+        ["JOIN", "CANCEL_SELECTION", "PROFILE"].includes(c.type)) &&
         c.epoch === l.epoch,
       "The room changed. Please try again.",
     );
     const me = this.player(device);
     const host = () =>
       this.require(l.hostDeviceId === device, "Only the host can do that.");
-    if (
-      ["RESERVE_COLOR", "RELEASE_COLOR", "JOIN", "CANCEL_SELECTION"].includes(
-        c.type,
-      )
-    ) {
-      this.require(!me, "You already have a character.");
-      if (c.type === "RELEASE_COLOR" || c.type === "CANCEL_SELECTION") {
-        this.releaseColor(device);
-        if (c.type === "CANCEL_SELECTION" && l.hostDeviceId === device) {
+    if (["JOIN", "CANCEL_SELECTION"].includes(c.type)) {
+      this.require(!me, "You have already joined this lobby.");
+      if (c.type === "CANCEL_SELECTION") {
+        if (l.hostDeviceId === device) {
           l.hostDeviceId = "";
           this.elect();
           if (!l.players.length) {
@@ -91,46 +98,28 @@ export class Game {
           "The game is already underway.",
         );
         this.require(l.players.length < 15, "This lobby is full.");
-        this.require(
-          typeof c.color === "string" && colors.includes(c.color),
-          "Choose a color.",
-        );
-        this.require(
-          !l.players.some((p) => p.color === c.color) &&
-            !Object.entries(l.reservations).some(
-              ([id, color]) => id !== device && color === c.color,
-            ),
-          "That color is taken. Choose another.",
-        );
-        if (c.type === "RESERVE_COLOR") {
-          l.reservations[device] = c.color;
-        } else {
-          this.require(
-            l.reservations[device] === c.color,
-            "Select an available color first.",
-          );
-          this.require(
-            typeof c.name === "string" &&
-              c.name.trim().length > 0 &&
-              c.name.trim().length <= 24,
-            "Names must be 1–24 characters.",
-          );
-          l.players.push({
-            id: randomUUID(),
-            name: c.name.trim(),
-            color: c.color,
-            deviceId: device,
-            connected: true,
-            alive: true,
-            order: Math.max(-1, ...l.players.map((p) => p.order)) + 1,
-          });
-          delete l.reservations[device];
-          this.elect();
-        }
+        this.validProfile(c);
+        l.players.push({
+          id: randomUUID(),
+          name: c.name.trim(),
+          picture: c.picture,
+          color: c.color,
+          deviceId: device,
+          connected: true,
+          alive: true,
+          order: Math.max(-1, ...l.players.map((p) => p.order)) + 1,
+        });
+        this.elect();
       }
     } else {
       this.require(me, "Join the crew first.");
       switch (c.type) {
+        case "PROFILE":
+          this.validProfile(c);
+          me.name = c.name.trim();
+          me.picture = c.picture;
+          me.color = c.color;
+          break;
         case "RENAME":
           host();
           this.require(
@@ -204,7 +193,6 @@ export class Game {
           l.players.forEach((p) => (p.alive = true));
           l.votes = {};
           l.result = undefined;
-          l.reservations = {};
           l.phase = "GAME_ACTIVE";
           break;
         case "MEETING":
@@ -300,7 +288,6 @@ export class Game {
     if (connected) this.connectedDevices.add(device);
     else {
       this.connectedDevices.delete(device);
-      this.releaseColor(device);
     }
     const p = this.player(device);
     if (p && p.connected !== connected) {

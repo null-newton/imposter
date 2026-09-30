@@ -747,14 +747,6 @@ export class RoomTransport {
           changed = true;
         }
       }
-      for (const id of Object.keys(l.reservations))
-        if (
-          id !== identity.id &&
-          !this.meta.members.some((m) => m.id === id && m.online)
-        ) {
-          delete l.reservations[id];
-          changed = true;
-        }
       if (changed) this.game.touch("Connections updated");
       if (l.phase === "MEETING_VOTING") {
         if (

@@ -34,9 +34,15 @@ try {
   }
   await pages[0].getByRole("button", { name: /^Create Lobby/ }).click();
   await pages[0].getByLabel("Your name").fill("Red");
-  await pages[0]
-    .getByRole("button", { name: "Red Available", exact: true })
-    .click();
+  const picture = await sharp({
+    create: { width: 96, height: 96, channels: 3, background: "#f04747" },
+  }).png().toBuffer();
+  await pages[0].locator('input[type="file"]').setInputFiles({
+    name: "red.png",
+    mimeType: "image/png",
+    buffer: picture,
+  });
+  await pages[0].locator(".profile-fields .player-avatar img").waitFor();
   await pages[0]
     .getByRole("button", { name: "Join as Red", exact: true })
     .click();
@@ -70,24 +76,9 @@ try {
     await pages[i].getByRole("button", { name: /^Join Lobby/ }).click();
     await pages[i].getByLabel("Your name").waitFor();
   }
-  await pages[1]
-    .getByRole("button", { name: "Blue Available", exact: true })
-    .click();
-  await expect(
-    pages[2].getByRole("button", { name: "Blue Being chosen", exact: true }),
-  ).toBeDisabled();
-  await pages[1]
-    .getByRole("button", { name: "Cyan Available", exact: true })
-    .click();
-  await expect(
-    pages[2].getByRole("button", { name: "Blue Available", exact: true }),
-  ).toBeEnabled();
   for (let i = 1; i < 4; i++) {
     const name = ["Red", "Blue", "Green", "Yellow"][i];
     await pages[i].getByLabel("Your name").fill(name);
-    await pages[i]
-      .getByRole("button", { name: name + " Available", exact: true })
-      .click();
     await pages[i]
       .getByRole("button", { name: "Join as " + name, exact: true })
       .click();
@@ -104,6 +95,18 @@ try {
     path: "test-results/peer-lobby.png",
     fullPage: true,
   });
+  await pages[0].getByRole("button", { name: "Device settings" }).click();
+  await pages[0].locator('input[type="file"]').setInputFiles({
+    name: "new.png",
+    mimeType: "image/png",
+    buffer: picture,
+  });
+  await pages[0].getByRole("button", { name: "Save profile" }).click();
+  const savedProfile = await pages[0].evaluate(() =>
+    JSON.parse(localStorage.getItem("meeting-peer-peer-0-profile") || "null"),
+  );
+  assert.equal(savedProfile.name, "Red");
+  assert.match(savedProfile.picture, /^data:image\/jpeg;base64,/);
   await pages[0].getByRole("button", { name: "Lobby menu" }).click();
   await pages[0]
     .getByRole("button", { name: "Game settings", exact: true })
@@ -191,7 +194,7 @@ try {
     ),
   );
   console.log(
-    "PASS: single-scan QR, room codes, live reservations, four-player minimum, direct WebRTC gameplay, hidden vote commitments, host migration during voting, restored ballot/identity, manual host transfer, and no game messages on the signaling socket.",
+    "PASS: photo profiles, automatic joining, invitation QR, four-player minimum, direct WebRTC gameplay, hidden vote commitments, host migration during voting, restored ballot/identity, manual host transfer, and no game messages on the signaling socket.",
   );
 } catch (e) {
   for (const page of browser.contexts().flatMap((c) => c.pages())) {

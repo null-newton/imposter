@@ -1,6 +1,6 @@
 # Meeting Room
 
-A mobile PWA for in-person games. The host creates a lobby and chooses their own name and color. Guests on the same internet connection press Join Lobby to enter automatically when one lobby is available, then choose theirs. If several lobbies match, they choose one; invitation QR links and codes remain available as a fallback. Colors reserve live. Four connected players unlock Start Game.
+A mobile PWA for in-person games. The host creates a lobby and enters a name and optional picture. Guests on the same internet connection press Join Lobby to enter automatically when one lobby is available, then enter their profiles. If several lobbies match, they choose one; invitation QR links and codes remain available as a fallback. A random badge color is assigned when no picture is uploaded. Profiles are saved on each player's device and can be edited in device settings. Four connected players unlock Start Game.
 
 ## Production
 
@@ -8,7 +8,7 @@ A mobile PWA for in-person games. The host creates a lobby and chooses their own
 - Connection service: wss://imp-signal.zacsvae.com/signal — Node on the CachyOS laptop through a dedicated Cloudflare Tunnel.
 - Health: https://imp-signal.zacsvae.com/healthz.
 
-The signaling service is deployed separately from toolbox-backend and the existing filesrv tunnel. The service stores room membership, hashed reconnect credentials, hashed connection fingerprints and host epochs. Names, color selections, game events and votes travel directly over WebRTC data channels. The website needs its GitHub Pages workflow deployed to serve the new client.
+The signaling service is deployed separately from toolbox-backend and the existing filesrv tunnel. The service stores room membership, hashed reconnect credentials, hashed connection fingerprints and host epochs. Names, small picture thumbnails, game events and votes travel directly over WebRTC data channels. The website needs its GitHub Pages workflow deployed to serve the new client.
 
 ## Local development
 
@@ -44,8 +44,8 @@ The workflow at .github/workflows/deploy.yml runs unit/integration tests, builds
 - Every device connects directly to its peers. The host runs the game state machine and distributes snapshots. Other devices cache those snapshots so the next host can restore the latest available state.
 - A disconnected host is replaced after a grace period. Heartbeat detection can take around 10–25 seconds, followed by a short state-recovery pause. The signaling service must be reachable for host changes and new connections.
 - During voting, devices send salted SHA-256 commitments instead of readable choices. Once voting closes, devices reveal their saved ballots to the host. Results appear after all committed votes are received or a five-second reveal grace period ends. A device that stays offline through that deadline abstains, even if it previously committed a vote. Returning before the deadline restores its saved ballot.
-- State-changing requests are checked against the lobby, authority epoch, phase and player ownership. Color claims are serialized by the host, preventing simultaneous overlap. This is a trusted party-game companion, not a cheat-proof competitive protocol; a modified host client can falsify state.
-- Explicitly leaving releases the player in the waiting room. Temporarily disconnecting reserves the existing character for reconnection.
+- State-changing requests are checked against the lobby, authority epoch, phase and player ownership. Profile changes are validated by the host. This is a trusted party-game companion, not a cheat-proof competitive protocol; a modified host client can falsify state.
+- Explicitly leaving releases the player in the waiting room. Temporarily disconnecting preserves the existing player profile for reconnection.
 
 ## Network limits
 
@@ -57,6 +57,6 @@ Keep participating apps in the foreground when possible. Mobile operating system
 
 HTTPS allows home-screen installation, camera scanning and offline shell loading. The production service worker caches the shell and built assets. Offline loading does not create a new room without the connection service.
 
-npm test covers game transitions, reservations, duplicate claims, reconnects, host migration, voting, privacy commitments, automatic lobby discovery and signaling room isolation. npm run test:browser exercises four actual browser/WebRTC clients against a local static preview and signal service; it tests automatic joining, a decoded invitation QR, room codes, voting, host loss during voting, ballot recovery and manual transfer. It asserts that gameplay messages never use the signaling WebSocket. npm run test:offline checks cached shell loading. See deploy/README.md for setup and operations.
+npm test covers game transitions, profile validation, duplicate claims, reconnects, host migration, voting, privacy commitments, automatic lobby discovery and signaling room isolation. npm run test:browser exercises four actual browser/WebRTC clients against a local static preview and signal service; it tests automatic joining, profile pictures, a decoded invitation QR, room codes, voting, host loss during voting, ballot recovery and manual transfer. It asserts that gameplay messages never use the signaling WebSocket. npm run test:offline checks cached shell loading. See deploy/README.md for setup and operations.
 
 Fan-made companion, not affiliated with Innersloth.
