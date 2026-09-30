@@ -36,7 +36,7 @@ Copy updated server/signaling.mjs and deploy/signaling files into that folder, t
 docker compose -f deploy/signaling/compose.yaml up -d --build
 ```
 
-Keep the metadata volume. Clients reconnect after a service restart. Schedule updates between games. The service has an origin allowlist for https://imp.zacsvae.com and https://null-newton.github.io. Development origins are allowed only by the local service defaults. Game state never lives in this Docker volume.
+Keep the metadata volume. Clients reconnect after a service restart. Schedule updates between games. The service allows the production site plus localhost development on ports 5173 and 5175. Game state never lives in this Docker volume.
 
 The install-user.sh script documents initial installation using the existing user's Cloudflare account certificate. It creates a dedicated tunnel and DNS record only for imp-signal.zacsvae.com. It does not edit the root-owned filesrv tunnel. Do not start another connector for filesrv with this app's ingress rules.
 

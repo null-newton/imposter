@@ -12,18 +12,14 @@ The signaling service is deployed separately from toolbox-backend and the existi
 
 ## Local development
 
-Use Node 24 or newer. In two terminals:
+Use Node 24 or newer. The development app uses the deployed signaling service by default:
 
 ```sh
 npm ci
-npm run signal
-```
-
-```sh
 npm run dev
 ```
 
-Open http://localhost:5173. The local signal service listens on 127.0.0.1:8788. A production build uses wss://imp-signal.zacsvae.com/signal unless VITE_SIGNAL_URL is set at build time. Do not put credentials in VITE_ variables: they are public frontend configuration.
+Open http://localhost:5173. The signaling service accepts localhost origins. To test against a local service instead, start `npm run signal` in another terminal and set `VITE_SIGNAL_URL=ws://localhost:8788/signal` before starting Vite. Production and development builds otherwise use wss://imp-signal.zacsvae.com/signal. Do not put credentials in VITE_ variables: they are public frontend configuration.
 
 ```sh
 npm test

@@ -35,10 +35,7 @@ type View = {
   revealing: boolean;
 };
 const signalUrl =
-  import.meta.env.VITE_SIGNAL_URL ||
-  (import.meta.env.DEV
-    ? "ws://localhost:8788/signal"
-    : "wss://imp-signal.zacsvae.com/signal");
+  import.meta.env.VITE_SIGNAL_URL || "wss://imp-signal.zacsvae.com/signal";
 export class RoomTransport {
   private ws?: WebSocket;
   private retry = 600;

@@ -195,13 +195,10 @@ export default function App() {
         <div className="offline-banner" role="status">
           {net.code
             ? "Reconnecting to your crew…"
-            : import.meta.env.DEV && !import.meta.env.VITE_SIGNAL_URL
-              ? "Waiting for the local connection service…"
-              : "Connecting to the room service…"}{" "}
+            : "Connecting to the room service…"}{" "}
           <small>
-            {import.meta.env.DEV && !import.meta.env.VITE_SIGNAL_URL
-              ? "Run npm run signal in another terminal. It listens on port 8788."
-              : "Keep this screen open. If this continues, check your Wi-Fi or ask your host to reopen the app."}
+            Keep this screen open. If this continues, check your connection or
+            ask your host to reopen the app.
           </small>
         </div>
       )}
