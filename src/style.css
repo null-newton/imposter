@@ -349,11 +349,6 @@ p {
 .home-copy h1 > span {
   color: var(--green);
 }
-.home-description {
-  font-size: 15px;
-  line-height: 1.85;
-  color: #9caac0;
-}
 .home-actions {
   display: flex;
   gap: 12px;
@@ -606,92 +601,16 @@ p {
   z-index: 5;
   transform: rotate(-5deg);
 }
-.visual-caption {
-  display: flex;
-  justify-content: center;
-  gap: 22px;
-  color: #536d8c;
-  font-size: 8px;
-  letter-spacing: 2px;
-  margin-top: 7px;
-}
-.how-section {
-  padding: 32px 0 38px;
-  border-top: 1px solid #24304180;
-}
-.how-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 23px;
-}
-.how-title .eyebrow {
-  font-size: 9px;
-  letter-spacing: 1.7px;
-  color: #6f839f;
-}
-.how-title h2 {
-  font-size: 17px;
-  font-weight: 500;
-  letter-spacing: -0.4px;
-}
-.steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 17px;
-}
-.step {
-  padding: 22px 24px 24px;
-  background: linear-gradient(120deg, #15203199, #10192670);
-  border: 1px solid #263448;
-  border-radius: 12px;
-}
-.step-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 19px;
-}
-.step-top svg {
-  color: #80a5c9;
-}
-.step-top span {
-  font-size: 11px;
-  font-family: monospace;
-  color: #556880;
-}
-.step h3 {
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 7px;
-}
-.step p {
-  font-size: 11px;
-  color: #7e90aa;
-}
 .site-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 20px;
   border-top: 1px solid #24304180;
   min-height: 72px;
   color: #596d89;
   font-size: 10px;
   margin-top: auto;
-}
-.site-footer > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 8px;
-  letter-spacing: 1.5px;
-}
-.site-footer .live-dot {
-  width: 4px;
-  height: 4px;
-  background: #638783;
-  box-shadow: none;
 }
 .site-footer button {
   border: 0;
@@ -1469,9 +1388,6 @@ p {
   .home-visual .hero-art {
     transform: scale(0.88);
   }
-  .home-description {
-    font-size: 13px;
-  }
   .hero-art {
     max-width: 390px;
   }
@@ -1480,12 +1396,6 @@ p {
   }
   .home-visual .visual-heading span {
     font-size: 56px;
-  }
-  .step {
-    padding: 19px;
-  }
-  .step p {
-    font-size: 10px;
   }
   .home-tags {
     gap: 9px;
@@ -1559,8 +1469,7 @@ p {
     max-width: 380px;
     margin: -2px 0 -10px;
   }
-  .visual-heading,
-  .visual-caption {
+  .visual-heading {
     display: none;
   }
   .home-visual .hero-art {
@@ -1593,19 +1502,8 @@ p {
     height: 240px;
     top: 8px;
   }
-  .home-description {
-    order: 3;
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.7;
-    max-width: 320px;
-    margin: 5px 0 0;
-  }
-  .home-description br {
-    display: none;
-  }
   .home-actions {
-    order: 4;
+    order: 3;
     max-width: 100%;
     width: 100%;
     gap: 11px;
@@ -1616,71 +1514,21 @@ p {
   }
   .home-note,
   .existing {
-    order: 5;
+    order: 4;
     font-size: 10px;
     margin-top: 16px;
   }
   .home-tags {
-    order: 6;
+    order: 5;
     font-size: 9px;
     justify-content: center;
     margin-top: 22px;
     gap: 12px;
   }
-  .how-section {
-    padding: 27px 0;
-  }
-  .how-title {
-    display: block;
-    text-align: center;
-    margin-bottom: 22px;
-  }
-  .how-title h2 {
-    margin-top: 11px;
-    font-size: 18px;
-  }
-  .how-title .eyebrow {
-    font-size: 8px;
-  }
-  .steps {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .step {
-    position: relative;
-    padding: 18px 18px 18px 60px;
-  }
-  .step-top {
-    position: absolute;
-    left: 18px;
-    top: 22px;
-    display: block;
-  }
-  .step-top span {
-    display: none;
-  }
-  .step h3 {
-    font-size: 13px;
-  }
-  .step p {
-    font-size: 11px;
-  }
   .site-footer {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    padding: 22px 0;
-    min-height: 90px;
-    gap: 14px;
-  }
-  .site-footer > span:nth-child(2) {
-    order: 3;
-    width: 100%;
-    font-size: 9px;
-    text-align: center;
-    color: #52657e;
+    min-height: 72px;
   }
   .site-footer button {
-    padding: 0;
     font-size: 9px;
   }
   .flow-main {

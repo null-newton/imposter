@@ -195,10 +195,13 @@ export default function App() {
         <div className="offline-banner" role="status">
           {net.code
             ? "Reconnecting to your crew…"
-            : "Connecting to the room service…"}{" "}
+            : import.meta.env.DEV && !import.meta.env.VITE_SIGNAL_URL
+              ? "Waiting for the local connection service…"
+              : "Connecting to the room service…"}{" "}
           <small>
-            Keep this screen open. If this continues, check your Wi-Fi or ask
-            your host to reopen the app.
+            {import.meta.env.DEV && !import.meta.env.VITE_SIGNAL_URL
+              ? "Run npm run signal in another terminal. It listens on port 8788."
+              : "Keep this screen open. If this continues, check your Wi-Fi or ask your host to reopen the app."}
           </small>
         </div>
       )}
@@ -215,12 +218,6 @@ export default function App() {
                   <br />
                   <span>Or don't.</span>
                 </h1>
-                <p className="home-description">
-                  Your next emergency meeting starts here.
-                  <br />
-                  Gather your friends, set up your profile, and let
-                  <br className="desktop-break" /> the accusations begin.
-                </p>
                 <div className="home-actions">
                   <Button
                     disabled={!!l || !net.connected}
@@ -258,8 +255,6 @@ export default function App() {
                   </span>
                   <i />
                   <span>No accounts</span>
-                  <i />
-                  <span>Just suspicion</span>
                 </div>
               </section>
               <section
@@ -272,49 +267,8 @@ export default function App() {
                   <span>AMONG US</span>
                 </div>
                 <Hero />
-                <div className="visual-caption">
-                  <span>YOUR CREW. ONE ROOM.</span>
-                  <span>A LITTLE SUSPICION.</span>
-                </div>
               </section>
             </div>
-            <section className="how-section">
-              <div className="how-title">
-                <span className="eyebrow">A GOOD ALIBI STARTS HERE</span>
-                <h2>Less setup. More suspicion.</h2>
-              </div>
-              <div className="steps">
-                {[
-                  [
-                    "01",
-                    "Gather your crew",
-                    "One Wi-Fi network. All your favorite suspects.",
-                    "wifi",
-                  ],
-                  [
-                    "02",
-                    "Set your profile",
-                    "Add your name and a picture if you like.",
-                    "users",
-                  ],
-                  [
-                    "03",
-                    "Call a meeting",
-                    "Discuss, vote, and send someone into space.",
-                    "bolt",
-                  ],
-                ].map(([n, h, p, icon]) => (
-                  <article className="step" key={n}>
-                    <div className="step-top">
-                      <Icon name={icon} size={22} />
-                      <span>{n}</span>
-                    </div>
-                    <h3>{h}</h3>
-                    <p>{p}</p>
-                  </article>
-                ))}
-              </div>
-            </section>
           </>
         ) : (
           <>
@@ -760,10 +714,6 @@ export default function App() {
         )}
       </main>
       <footer className="site-footer">
-        <span>
-          <span className="live-dot" /> BUILT FOR TOGETHER
-        </span>
-        <span>A fan-made companion. Let the real-world game begin.</span>
         <button onClick={() => setModal("about")}>
           How it works <span>↗</span>
         </button>
