@@ -54,6 +54,42 @@
 .join-panel .button {
   margin-top: 14px;
 }
+.lobby-choices {
+  margin-bottom: 16px;
+}
+.lobby-choices h2 {
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+.lobby-choices p {
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.lobby-choices button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  margin-top: 8px;
+  border: 1px solid #354b66;
+  border-radius: 10px;
+  background: #17283c;
+  color: #eff3fa;
+  font: inherit;
+  cursor: pointer;
+}
+.lobby-choices button:hover {
+  border-color: #5a94ee;
+}
+.lobby-choices button:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+.lobby-choices small {
+  color: #9dafc6;
+}
 .qr-camera {
   width: 100%;
   border-radius: 12px;

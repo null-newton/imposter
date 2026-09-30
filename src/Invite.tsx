@@ -23,8 +23,8 @@ export function Invite({ code }: { code: string }) {
   return (
     <div className="invite-panel">
       <p>
-        Each player scans this code once with their phone camera, then picks a
-        name and color.
+        Players on the same internet connection can press Join Lobby. Share this
+        invitation if their lobby is not found or more than one is open.
       </p>
       {qr && (
         <img
@@ -33,7 +33,7 @@ export function Invite({ code }: { code: string }) {
           alt={`Invitation QR for room ${code}`}
         />
       )}
-      <span className="eyebrow">OR ENTER THE ROOM CODE</span>
+      <span className="eyebrow">LOBBY CODE FOR MANUAL JOINING</span>
       <strong className="invitation-code" data-testid="room-code">
         {code}
       </strong>
@@ -127,7 +127,7 @@ export function JoinPanel({
         scan();
       })
       .catch(() => {
-        setError("Camera unavailable. Enter the room code instead.");
+        setError("Camera unavailable. Enter the lobby code instead.");
         setScanning(false);
       });
     return stop;
@@ -136,9 +136,9 @@ export function JoinPanel({
     <section className="panel join-panel">
       <Icon name="users" size={35} />
       <h2>Join your crew</h2>
-      <p>Ask your host for the invitation QR or room code.</p>
+      <p>If your lobby was not found, scan its invitation or enter its code.</p>
       <label className="player-name-field">
-        Room code
+        Lobby code
         <input
           value={code}
           maxLength={10}
@@ -153,7 +153,7 @@ export function JoinPanel({
         disabled={disabled || joining || code.replace(/[ -]/g, "").length !== 8}
         onClick={() => onJoin(code)}
       >
-        {joining ? "Connecting to your crew…" : "Join Room"}
+        {joining ? "Connecting to your crew…" : "Join with code"}
       </Button>
       {navigator.mediaDevices && (
         <Button

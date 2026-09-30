@@ -68,10 +68,6 @@ try {
   await pages[1].getByLabel("Your name").waitFor();
   for (let i = 2; i < 4; i++) {
     await pages[i].getByRole("button", { name: /^Join Lobby/ }).click();
-    await pages[i].getByLabel("Room code").fill(code);
-    await pages[i]
-      .getByRole("button", { name: "Join Room", exact: true })
-      .click();
     await pages[i].getByLabel("Your name").waitFor();
   }
   await pages[1]

@@ -1,6 +1,6 @@
 # Meeting Room
 
-A mobile PWA for in-person games. The host creates a room and chooses their own name and color; guests scan one invitation QR or enter the room code, then choose theirs. Colors reserve live. Four connected players unlock Start Game.
+A mobile PWA for in-person games. The host creates a lobby and chooses their own name and color. Guests on the same internet connection press Join Lobby to enter automatically when one lobby is available, then choose theirs. If several lobbies match, they choose one; invitation QR links and codes remain available as a fallback. Colors reserve live. Four connected players unlock Start Game.
 
 ## Production
 
@@ -8,7 +8,7 @@ A mobile PWA for in-person games. The host creates a room and chooses their own 
 - Connection service: wss://imp-signal.zacsvae.com/signal — Node on the CachyOS laptop through a dedicated Cloudflare Tunnel.
 - Health: https://imp-signal.zacsvae.com/healthz.
 
-The signaling service is deployed separately from toolbox-backend and the existing filesrv tunnel. The service stores only room membership, hashed reconnect credentials and host epochs. Names, color selections, game events and votes travel directly over WebRTC data channels. The website needs its GitHub Pages workflow deployed to serve the new client.
+The signaling service is deployed separately from toolbox-backend and the existing filesrv tunnel. The service stores room membership, hashed reconnect credentials, hashed connection fingerprints and host epochs. Names, color selections, game events and votes travel directly over WebRTC data channels. The website needs its GitHub Pages workflow deployed to serve the new client.
 
 ## Local development
 
@@ -39,7 +39,7 @@ The workflow at .github/workflows/deploy.yml runs unit/integration tests, builds
 
 ## Multiplayer behavior
 
-- A room code identifies one crew. There is no automatic Wi-Fi scanning and no global lobby visible to every visitor. QR links contain the room code, never a reconnect token.
+- A room code identifies one crew internally. Join Lobby asks the signaling service for lobbies created from the same public internet connection. It joins the only match automatically or lists the matches if several exist. Browsers cannot read the Wi-Fi network name, so public address matching is only an approximation. QR links contain the room code, never a reconnect token.
 - The connection service authenticates persistent devices, relays WebRTC connection descriptions, and chooses a single host with an increasing epoch. It keeps that role stable when an original host returns.
 - Every device connects directly to its peers. The host runs the game state machine and distributes snapshots. Other devices cache those snapshots so the next host can restore the latest available state.
 - A disconnected host is replaced after a grace period. Heartbeat detection can take around 10–25 seconds, followed by a short state-recovery pause. The signaling service must be reachable for host changes and new connections.
@@ -49,7 +49,7 @@ The workflow at .github/workflows/deploy.yml runs unit/integration tests, builds
 
 ## Network limits
 
-WebRTC uses local ICE candidates only; there is no STUN or TURN service and no gameplay relay. Use the same Wi-Fi, with client isolation disabled. This avoids depending on an additional relay but cannot guarantee connectivity on every router or browser. A room code does not cryptographically prove that users share a Wi-Fi network. Physical iOS/Android testing remains necessary.
+Cloudflare Tunnel carries the signaling WebSocket, not gameplay traffic. WebRTC uses local ICE candidates only; there is no STUN or TURN service and no gameplay relay. Use the same Wi-Fi, with client isolation disabled. This cannot guarantee connectivity on every router or browser. Automatic discovery groups clients by the public IPv4 address or IPv6 /64 prefix reported to the signaling service; VPNs, mixed IPv4/IPv6 routing, and some networks can prevent a match. Use the invitation link or room code in those cases. A match does not prove that users share a Wi-Fi network. Physical iOS/Android testing remains necessary.
 
 Keep participating apps in the foreground when possible. Mobile operating systems may suspend background tabs. Existing direct connections can continue through a short signaling outage, but new joins, host election and rebuilding connections require the laptop/tunnel. Game snapshots are saved on players’ devices, not on the laptop; clearing every device’s storage loses the game.
 
@@ -57,6 +57,6 @@ Keep participating apps in the foreground when possible. Mobile operating system
 
 HTTPS allows home-screen installation, camera scanning and offline shell loading. The production service worker caches the shell and built assets. Offline loading does not create a new room without the connection service.
 
-npm test covers game transitions, reservations, duplicate claims, reconnects, host migration, voting, privacy commitments and signaling room isolation. npm run test:browser exercises four actual browser/WebRTC clients against a local static preview and signal service; it tests a decoded invitation QR, room codes, voting, host loss during voting, ballot recovery and manual transfer. It asserts that gameplay messages never use the signaling WebSocket. npm run test:offline checks cached shell loading. See deploy/README.md for setup and operations.
+npm test covers game transitions, reservations, duplicate claims, reconnects, host migration, voting, privacy commitments, automatic lobby discovery and signaling room isolation. npm run test:browser exercises four actual browser/WebRTC clients against a local static preview and signal service; it tests automatic joining, a decoded invitation QR, room codes, voting, host loss during voting, ballot recovery and manual transfer. It asserts that gameplay messages never use the signaling WebSocket. npm run test:offline checks cached shell loading. See deploy/README.md for setup and operations.
 
 Fan-made companion, not affiliated with Innersloth.

@@ -95,3 +95,58 @@ test("signaling isolates rooms, relays descriptions, rejects gameplay, and migra
     await app.close();
   }
 });
+
+test("automatic joining finds one lobby on the same connection and offers a choice for several", async () => {
+  const app = createSignalingServer({ origins: ["http://test.local"] });
+  await new Promise((r) => app.server.listen(0, "127.0.0.1", r));
+  const url = `ws://127.0.0.1:${app.server.address().port}/signal`;
+  const sockets = [];
+  async function client(ip) {
+    const ws = new WebSocket(url, {
+      origin: "http://test.local",
+      headers: { "CF-Connecting-IP": ip },
+    });
+    sockets.push(ws);
+    await new Promise((resolve) => ws.on("open", resolve));
+    const welcome = next(ws, "WELCOME");
+    ws.send(JSON.stringify({ type: "HELLO", id: randomUUID(), token: randomUUID() }));
+    await welcome;
+    return { ws, send: (message) => ws.send(JSON.stringify(message)) };
+  }
+  try {
+    const host = await client("192.0.2.10");
+    let wait = next(host.ws, "ROOM");
+    host.send({ type: "CREATE" });
+    const first = await wait;
+
+    const guest = await client("192.0.2.10");
+    wait = next(guest.ws, "ROOM");
+    guest.send({ type: "JOIN_AUTO" });
+    assert.equal((await wait).code, first.code);
+
+    const otherNetwork = await client("192.0.2.11");
+    wait = next(otherNetwork.ws, "ERROR");
+    otherNetwork.send({ type: "JOIN_AUTO" });
+    assert.match((await wait).message, /No lobby found/);
+
+    const secondHost = await client("192.0.2.10");
+    wait = next(secondHost.ws, "ROOM");
+    secondHost.send({ type: "CREATE" });
+    const second = await wait;
+
+    const chooser = await client("192.0.2.10");
+    wait = next(chooser.ws, "LOBBIES");
+    chooser.send({ type: "JOIN_AUTO" });
+    const choice = await wait;
+    assert.deepEqual(
+      choice.lobbies.map((lobby) => lobby.code).sort(),
+      [first.code, second.code].sort(),
+    );
+    wait = next(chooser.ws, "ROOM");
+    chooser.send({ type: "JOIN_ROOM", code: second.code });
+    assert.equal((await wait).code, second.code);
+  } finally {
+    for (const ws of sockets) ws.terminate();
+    await app.close();
+  }
+});

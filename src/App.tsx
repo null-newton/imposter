@@ -212,7 +212,7 @@ export default function App() {
             <div className="home-layout">
               <section className="home-copy">
                 <span className="eyebrow">
-                  <span className="live-dot" /> SAME ROOM. SAME WI-FI.
+                  <span className="live-dot" /> ONE CREW. SAME WI-FI.
                 </span>
                 <h1>
                   Trust your crew.
@@ -235,8 +235,11 @@ export default function App() {
                   </Button>
                   <Button
                     tone="blue"
-                    disabled={!net.connected}
-                    onClick={() => setPage("search")}
+                    disabled={!net.connected || net.joining}
+                    onClick={() => {
+                      setPage("search");
+                      room.joinAutomatically();
+                    }}
                   >
                     <Icon name="users" /> Join Lobby{" "}
                     <span className="button-arrow">→</span>
@@ -379,7 +382,26 @@ export default function App() {
                 {title(
                   "FIND YOUR PEOPLE",
                   "Join a lobby",
-                  "One invitation. Your whole crew.",
+                  "Finding your crew on this connection.",
+                )}
+                {net.lobbies.length > 1 && (
+                  <section className="panel lobby-choices">
+                    <h2>Choose your lobby</h2>
+                    <p>More than one lobby is open on this connection.</p>
+                    {net.lobbies.map((candidate) => (
+                      <button
+                        key={candidate.code}
+                        disabled={net.joining}
+                        onClick={() => room.join(candidate.code)}
+                      >
+                        <span>Lobby {candidate.code}</span>
+                        <small>{candidate.players} player{candidate.players === 1 ? "" : "s"}</small>
+                      </button>
+                    ))}
+                  </section>
+                )}
+                {net.joining && !net.code && (
+                  <p className="hint" role="status">Looking for a lobby…</p>
                 )}
                 <JoinPanel
                   onJoin={(code) => room.join(code)}
@@ -419,7 +441,7 @@ export default function App() {
                       <span className="live-dot" /> {connected}/
                       {l.players.length} connected{" "}
                       <span className="room-code">
-                        ROOM <span data-testid="room-code">{net.code}</span>
+                        LOBBY <span data-testid="room-code">{net.code}</span>
                       </span>
                     </p>
                   </div>
@@ -461,7 +483,7 @@ export default function App() {
                       <Icon name="wifi" />
                       <div>
                         <strong>Bring your crew aboard</strong>
-                        <small>Share the room code or invitation QR.</small>
+                        <small>Ask everyone to tap Join Lobby on the same Wi-Fi.</small>
                       </div>
                       <button onClick={() => setModal("share")}>
                         Invite ↗
@@ -1046,8 +1068,9 @@ export default function App() {
           {modal === "about" && (
             <>
               <p>
-                One person creates a lobby. Everyone else scans their invitation
-                QR or enters the room code, then picks a name and color.
+                One person creates a lobby. Everyone else presses Join Lobby to
+                find it on the same internet connection, then picks a name and
+                color. An invitation QR or code is available if needed.
               </p>
               <p>
                 Play your real-world game, call a meeting when something looks

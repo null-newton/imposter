@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomInt, randomUUID, createHash } from "node:crypto";
+import { isIP } from "node:net";
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
@@ -20,6 +21,28 @@ export function createSignalingServer({
     identities = new Map(),
     attempts = new Map();
   const hash = (value) => createHash("sha256").update(value).digest("hex");
+  const networkFor = (req) => {
+    const ip = String(
+      req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "",
+    );
+    if (isIP(ip) === 4) return hash(`v4:${ip}`);
+    if (isIP(ip) === 6) {
+      const [left, right = ""] = ip.toLowerCase().split("::");
+      const before = left ? left.split(":") : [];
+      const after = right ? right.split(":") : [];
+      const groups = [
+        ...before,
+        ...Array(8 - before.length - after.length).fill("0"),
+        ...after,
+      ];
+      const prefix = groups
+        .slice(0, 4)
+        .map((part) => part.padStart(4, "0"))
+        .join(":");
+      return hash(`v6:${prefix}`);
+    }
+    return hash(`unknown:${ip}`);
+  };
   if (dataDir) {
     mkdirSync(dataDir, { recursive: true });
     try {
@@ -105,6 +128,7 @@ export function createSignalingServer({
   });
   wss.on("connection", (ws, req) => {
     const ip = req.socket.remoteAddress || "local";
+    const network = networkFor(req);
     let alive = true;
     const c = { id: "", code: "", count: 0, window: Date.now() };
     clients.set(ws, c);
@@ -165,7 +189,11 @@ export function createSignalingServer({
           send(ws, { type: "PONG", time: Date.now() });
           return;
         }
-        if (m.type === "CREATE" || m.type === "JOIN_ROOM") {
+        if (
+          m.type === "CREATE" ||
+          m.type === "JOIN_ROOM" ||
+          m.type === "JOIN_AUTO"
+        ) {
           const bucket = attempts.get(ip) || { count: 0, since: Date.now() };
           if (Date.now() - bucket.since > 60000) {
             bucket.count = 0;
@@ -194,9 +222,32 @@ export function createSignalingServer({
               hostId: c.id,
               epoch: 1,
               members: [],
+              network,
               updated: Date.now(),
             };
             rooms.set(code, r);
+          } else if (m.type === "JOIN_AUTO") {
+            const matches = [...rooms.values()].filter(
+              (room) =>
+                room.network === network &&
+                room.members.some((p) => p.online) &&
+                room.members.length < 15,
+            );
+            if (!matches.length)
+              throw Error(
+                "No lobby found on this connection. Ask the host for an invitation link or room code.",
+              );
+            if (matches.length > 1) {
+              send(ws, {
+                type: "LOBBIES",
+                lobbies: matches.map((room) => ({
+                  code: room.code,
+                  players: room.members.length,
+                })),
+              });
+              return;
+            }
+            r = matches[0];
           } else {
             const code = String(m.code || "")
               .toUpperCase()
@@ -204,6 +255,7 @@ export function createSignalingServer({
             r = rooms.get(code);
             if (!r)
               throw Error("Room not found. Check the code with your host.");
+            if (!r.network && r.hostId === c.id) r.network = network;
           }
           let p = r.members.find((p) => p.id === c.id);
           if (!p) {

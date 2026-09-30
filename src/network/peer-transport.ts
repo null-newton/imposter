@@ -31,6 +31,7 @@ type View = {
   offset: number;
   code: string;
   joining: boolean;
+  lobbies: { code: string; players: number }[];
   revealing: boolean;
 };
 const signalUrl =
@@ -67,6 +68,7 @@ export class RoomTransport {
     offset: 0,
     code: localStorage.getItem(storageKey + "-room") || "",
     joining: false,
+    lobbies: [],
     revealing: false,
   };
   constructor() {
@@ -139,6 +141,8 @@ export class RoomTransport {
           else this.update({ connected: true });
         }
         if (m.type === "ROOM") this.onRoom(m);
+        if (m.type === "LOBBIES")
+          this.update({ lobbies: m.lobbies, joining: false });
         if (m.type === "SIGNAL")
           void this.onSignal(m.from, m.data).catch((e) => this.fail(e));
         if (m.type === "ENDED" || m.type === "LEFT")
@@ -179,11 +183,17 @@ export class RoomTransport {
         this.fail("Leave your current room before joining another.");
       return;
     }
-    this.update({ joining: true, error: "" });
+    this.update({ joining: true, lobbies: [], error: "" });
     if (!this.signal({ type: "JOIN_ROOM", code: clean }))
       this.fail(
         "The connection service is unavailable. Please try again shortly.",
       );
+  }
+  joinAutomatically() {
+    if (this.view.code || this.view.joining) return;
+    this.update({ joining: true, lobbies: [], error: "" });
+    if (!this.signal({ type: "JOIN_AUTO" }))
+      this.fail("The connection service is unavailable. Please try again shortly.");
   }
   private reset(notice = "") {
     this.meta = undefined;
@@ -206,6 +216,7 @@ export class RoomTransport {
       code: "",
       connected: this.view.signaling,
       joining: false,
+      lobbies: [],
       revealing: false,
       notice,
     });
@@ -218,7 +229,7 @@ export class RoomTransport {
     const previous = this.meta;
     this.meta = meta;
     localStorage.setItem(storageKey + "-room", meta.code);
-    this.update({ code: meta.code });
+    this.update({ code: meta.code, joining: false, lobbies: [] });
     for (const [id, link] of this.links)
       if (!meta.members.some((p) => p.id === id && p.online)) {
         link.pc.close();
